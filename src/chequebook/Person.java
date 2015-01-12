@@ -32,10 +32,10 @@ public class Person implements Serializable {
         this.name = name;
     }
 
-    BigDecimal getBalance() {
+    public BigDecimal getBalance() {
         BigDecimal sum = BigDecimal.ZERO;
         for (Transaction t : transactions) {
-            if (t.peer == this) sum = sum.add(t.amount);
+            sum = sum.add(t.amount);
         }
         return sum;
     }

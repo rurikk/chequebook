@@ -27,6 +27,10 @@ public class Transaction {
         return peer;
     }
 
+    public String getPeerName() {
+        return peer.name;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }

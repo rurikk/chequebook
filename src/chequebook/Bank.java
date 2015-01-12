@@ -14,7 +14,19 @@ public class Bank {
     private static Bank bootstrap() {
         Bank bank = new Bank();
         bank.persons.put("admin", new Person("admin", "Admin", true));
+
+        debug(bank);
+
         return bank;
+    }
+
+    private static void debug(Bank bank) {
+        Person a = bank.findPerson("admin");
+        Person p = bank.addPerson();
+        p.setName("Test 1");
+
+        bank.addTransaction(Instant.now(), a, p, new BigDecimal("23.45"), "Comment1");
+        bank.addTransaction(Instant.now(), p, a, new BigDecimal("24.55"), "Comment2");
     }
 
     public synchronized List<Person> getPersons() {
