@@ -1,6 +1,7 @@
 package chequebook;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.*;
 
@@ -21,12 +22,24 @@ public class Bank {
     }
 
     private static void debug(Bank bank) {
-        Person a = bank.findPerson("admin");
-        Person p = bank.addPerson();
-        p.setName("Test 1");
+        ArrayList<Person> list = new ArrayList<>();
+        list.add(bank.findPerson("admin"));
+        for (int i = 0; i < 100; i++) {
+            Person p = bank.addPerson();
+            p.setName("Test " + i);
+            list.add(p);
+        }
+        long start = System.currentTimeMillis();
 
-        bank.addTransaction(Instant.now(), a, p, new BigDecimal("23.45"), "Comment1");
-        bank.addTransaction(Instant.now(), p, a, new BigDecimal("24.55"), "Comment2");
+        for (Person p1 : list) {
+            for (Person p2 : list) {
+                for (int i = 0; i < 10; i++) {
+                    bank.addTransaction(Instant.now(), p1, p2, new BigDecimal(Math.random() * 1000, new MathContext(4)),
+                            "Comment " + p1.getName() + " - " + p2.getName());
+                }
+            }
+        }
+        System.out.println(System.currentTimeMillis() - start);
     }
 
     public synchronized List<Person> getPersons() {

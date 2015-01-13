@@ -33,7 +33,13 @@ public class ChequebookUI extends UI {
 
     @Override
     public void init(VaadinRequest request) {
-        me = Bank.instance.findPerson(((VaadinServletRequest) request).getRequestURI().substring(1));
+        try {
+            me = Bank.instance.findPerson(((VaadinServletRequest) request).getRequestURI().substring(1));
+        } catch (Exception e) {
+            Notification.show("Not authenticated", Notification.Type.ERROR_MESSAGE);
+            close();
+            return;
+        }
         tabBarView = new TabBarView() {{
             addTab(personTable, "All", FontAwesome.LIST_OL);
             addTab(form, "Add", FontAwesome.PLUS);
@@ -94,19 +100,14 @@ public class ChequebookUI extends UI {
 
         {
             send.setWidth("100%");
-            addComponents(peer, amount, send);
+            addComponents(peer, amount, comment, send);
         }
 
         public void setValue(Person person) {
             peer.setValue(person);
             amount.setValue(null);
-            comment.setValue(null);
+            comment.setValue("");
         }
-    }
-
-    @WebServlet(urlPatterns = "/*")
-    @VaadinServletConfiguration(productionMode = true, ui = ChequebookUI.class)
-    public static class Servlet extends TouchKitServlet {
     }
 
     private class TransactionTable extends Table {
@@ -115,8 +116,9 @@ public class ChequebookUI extends UI {
             setContainerDataSource(new BeanItemContainer<>(Transaction.class, me.transactions));
             setVisibleColumns("created", "peerName", "amount", "comment");
             setColumnHeaders("Created", "Peer", "Amount", "Comment");
+            setSortContainerPropertyId("created");
             setConverter("created", new CellConverter<Instant>(Instant.class) {
-                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(ZoneId.systemDefault());
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
 
                 @Override
                 protected String convert(Instant instant) {
@@ -125,4 +127,10 @@ public class ChequebookUI extends UI {
             });
         }
     }
+
+    @WebServlet("/*")
+    @VaadinServletConfiguration(productionMode = true, ui = ChequebookUI.class)
+    public static class Servlet extends TouchKitServlet {
+    }
+
 }
