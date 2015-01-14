@@ -1,5 +1,6 @@
 package chequebook;
 
+import com.google.gwt.thirdparty.guava.common.base.Strings;
 import com.vaadin.addon.touchkit.server.TouchKitServlet;
 import com.vaadin.addon.touchkit.ui.NumberField;
 import com.vaadin.addon.touchkit.ui.TabBarView;
@@ -8,7 +9,6 @@ import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.data.util.BeanItemContainer;
-import com.vaadin.data.util.MethodProperty;
 import com.vaadin.server.FontAwesome;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinServletRequest;
@@ -34,27 +34,37 @@ public class ChequebookUI extends UI {
     @Override
     public void init(VaadinRequest request) {
         try {
-            me = Bank.instance.findPerson(((VaadinServletRequest) request).getRequestURI().substring(1));
+            String ctx = ((VaadinServletRequest) request).getRequestURI().substring(1);
+            if (Bank.instance.isAdmin(ctx)) {
+                setContent(new VerticalComponentGroup() {{
+                    TextField username = new TextField("New user name");
+                    addComponent(username);
+                    addComponent(new Button("Create user", clickEvent -> {
+                        if (!Strings.isNullOrEmpty(username.getValue())) {
+                            open(Bank.instance.addPerson(username.getValue()).getKey());
+                        }
+                    }));
+                    addComponent(new Button("Regenerate admin key", clickEvent -> {
+                        open(Bank.instance.generateAdminKey());
+                    }));
+                }});
+            } else {
+                me = Bank.instance.findPerson(ctx);
+                tabBarView = new TabBarView() {{
+                    addTab(personTable, "All", FontAwesome.LIST_OL);
+                    addTab(form, "Add", FontAwesome.PLUS);
+                    addTab(new TransactionTable(), "My transactions", FontAwesome.TABLE);
+                }};
+                setContent(tabBarView);
+            }
         } catch (Exception e) {
             Notification.show("Not authenticated", Notification.Type.ERROR_MESSAGE);
             close();
-            return;
         }
-        tabBarView = new TabBarView() {{
-            addTab(personTable, "All", FontAwesome.LIST_OL);
-            addTab(form, "Add", FontAwesome.PLUS);
-            addTab(new TransactionTable(), "My transactions", FontAwesome.TABLE);
-            addTab(new VerticalComponentGroup() {{
-                addComponent(new TextField("Name", new MethodProperty(me, "name")));
-                if (me.admin) {
-                    addComponent(new Button("Add user", clickEvent -> {
-                        Person p = Bank.instance.addPerson();
-                        JavaScript.eval("window.open('" + p.key + "', '_blank');");
-                    }));
-                }
-            }}, "Settings", FontAwesome.GEAR);
-        }};
-        setContent(tabBarView);
+    }
+
+    private void open(String key) {
+        JavaScript.eval("window.open('" + key + "', '_blank');");
     }
 
     private class PersonTable extends Table {
@@ -113,10 +123,11 @@ public class ChequebookUI extends UI {
     private class TransactionTable extends Table {
         {
             setSizeFull();
-            setContainerDataSource(new BeanItemContainer<>(Transaction.class, me.transactions));
+            setContainerDataSource(new BeanItemContainer<>(Transaction.class, me.getTransactions()));
             setVisibleColumns("created", "peerName", "amount", "comment");
             setColumnHeaders("Created", "Peer", "Amount", "Comment");
             setSortContainerPropertyId("created");
+            setSortAscending(false);
             setConverter("created", new CellConverter<Instant>(Instant.class) {
                 DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
 

@@ -1,45 +1,33 @@
 package chequebook;
 
+import java.io.*;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.Instant;
 import java.util.*;
 
 /**
  * Created by rurik
  */
-public class Bank {
-    public static Bank instance = bootstrap();
-    public Map<String, Person> persons = new HashMap<>();
+public class Bank implements Serializable {
+    public static final File dataFile = new File(System.getProperty("user.home"), "bank.bin");
+    public static final Bank instance = bootstrap();
+
+    private final Map<String, Person> persons = new HashMap<>();
+    private String adminKey = "admin";
 
     private static Bank bootstrap() {
-        Bank bank = new Bank();
-        bank.persons.put("admin", new Person("admin", "Admin", true));
-
-        debug(bank);
-
-        return bank;
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+            return (Bank) ois.readObject();
+        } catch (Exception ignored) {
+            return new Bank();
+        }
     }
 
-    private static void debug(Bank bank) {
-        ArrayList<Person> list = new ArrayList<>();
-        list.add(bank.findPerson("admin"));
-        for (int i = 0; i < 100; i++) {
-            Person p = bank.addPerson();
-            p.setName("Test " + i);
-            list.add(p);
+    private synchronized void save() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
+            oos.writeObject(this);
+        } catch (Exception ignored) {
         }
-        long start = System.currentTimeMillis();
-
-        for (Person p1 : list) {
-            for (Person p2 : list) {
-                for (int i = 0; i < 10; i++) {
-                    bank.addTransaction(Instant.now(), p1, p2, new BigDecimal(Math.random() * 1000, new MathContext(4)),
-                            "Comment " + p1.getName() + " - " + p2.getName());
-                }
-            }
-        }
-        System.out.println(System.currentTimeMillis() - start);
     }
 
     public synchronized List<Person> getPersons() {
@@ -47,8 +35,9 @@ public class Bank {
     }
 
     public synchronized void addTransaction(Instant time, Person p1, Person p2, BigDecimal amount, String comment) {
-        p1.transactions.add(new Transaction(time, p2, amount, comment));
-        p2.transactions.add(new Transaction(time, p1, amount.negate(), comment));
+        p1.getTransactions().add(new Transaction(time, p2, amount, comment));
+        p2.getTransactions().add(new Transaction(time, p1, amount.negate(), comment));
+        save();
     }
 
     public synchronized Person findPerson(String key) {
@@ -57,9 +46,20 @@ public class Bank {
         return p;
     }
 
-    public synchronized Person addPerson() {
-        Person person = new Person(UUID.randomUUID().toString(), "Новичок", false);
-        persons.put(person.key, person);
+    public synchronized Person addPerson(String name) {
+        Person person = new Person(UUID.randomUUID().toString(), name);
+        persons.put(person.getKey(), person);
+        save();
         return person;
+    }
+
+    public synchronized boolean isAdmin(String ctx) {
+        return Objects.equals(ctx, adminKey);
+    }
+
+    public synchronized String generateAdminKey() {
+        adminKey = UUID.randomUUID().toString();
+        save();
+        return adminKey;
     }
 }

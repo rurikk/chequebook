@@ -9,33 +9,31 @@ import java.util.List;
  * Created by rurik
  */
 public class Person implements Serializable {
-    public String key;
-    public String name;
-    public List<Transaction> transactions = new ArrayList<>();
-    boolean admin;
+    private final String key;
+    private final String name;
+    private final List<Transaction> transactions = new ArrayList<>();
 
-    public Person(String key, String name, boolean admin) {
+    public Person(String key, String name) {
         this.key = key;
         this.name = name;
-        this.admin = admin;
     }
 
-    public Person(String name) {
-        this.name = name;
+    public String getKey() {
+        return key;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public List<Transaction> getTransactions() {
+        return transactions;
     }
 
     public BigDecimal getBalance() {
         BigDecimal sum = BigDecimal.ZERO;
         for (Transaction t : transactions) {
-            sum = sum.add(t.amount);
+            sum = sum.add(t.getAmount());
         }
         return sum;
     }

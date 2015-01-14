@@ -1,16 +1,17 @@
 package chequebook;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
  * Created by rurik
  */
-public class Transaction {
-    Instant created;
-    Person peer;
-    BigDecimal amount;
-    String comment;
+public class Transaction implements Serializable {
+    private final Instant created;
+    private final Person peer;
+    private final BigDecimal amount;
+    private final String comment;
 
     public Transaction(Instant created, Person peer, BigDecimal amount, String comment) {
         this.created = created;
@@ -28,7 +29,7 @@ public class Transaction {
     }
 
     public String getPeerName() {
-        return peer.name;
+        return peer.getName();
     }
 
     public BigDecimal getAmount() {
