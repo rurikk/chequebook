@@ -9,6 +9,8 @@ import java.util.*;
  * Created by rurik
  */
 public class Bank implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     public static final File dataFile = new File(System.getProperty("user.home"), "bank.bin");
     public static final Bank instance = bootstrap();
 

@@ -10,6 +10,7 @@ import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.data.util.BeanItemContainer;
 import com.vaadin.server.FontAwesome;
+import com.vaadin.server.Page;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinServletRequest;
 import com.vaadin.ui.*;
@@ -17,7 +18,7 @@ import com.vaadin.ui.*;
 import javax.servlet.annotation.WebServlet;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -26,8 +27,10 @@ import java.time.format.DateTimeFormatter;
 @Theme("touchkit")
 @Widgetset("com.vaadin.addon.touchkit.gwt.TouchKitWidgetSet")
 public class ChequebookUI extends UI {
+    BeanItemContainer<Person> personContainer = new BeanItemContainer<>(Person.class, Bank.instance.getPersons());
     PersonTable personTable = new PersonTable();
     NewTransactionForm form = new NewTransactionForm();
+    TransactionTable transactionTable = new TransactionTable();
     Person me;
     TabBarView tabBarView;
 
@@ -53,7 +56,16 @@ public class ChequebookUI extends UI {
                 tabBarView = new TabBarView() {{
                     addTab(personTable, "All", FontAwesome.LIST_OL);
                     addTab(form, "Add", FontAwesome.PLUS);
-                    addTab(new TransactionTable(), "My transactions", FontAwesome.TABLE);
+                    addTab(transactionTable, "My transactions", FontAwesome.TABLE);
+                    addListener((SelectedTabChangeEvent event) -> {
+                        Component component = event.getTabSheet().getSelelectedTab().getComponent();
+                        if (component == personTable) {
+                            personTable.refreshRowCache();
+                        }
+                        if (component == transactionTable) {
+                            transactionTable.load();
+                        }
+                    });
                 }};
                 setContent(tabBarView);
             }
@@ -70,7 +82,7 @@ public class ChequebookUI extends UI {
     private class PersonTable extends Table {
         {
             setSizeFull();
-            setContainerDataSource(new BeanItemContainer<>(Person.class, Bank.instance.getPersons()));
+            setContainerDataSource(personContainer);
             setVisibleColumns("name", "balance");
             setColumnHeaders("Name", "Balance");
             setSortContainerPropertyId("balance");
@@ -82,7 +94,7 @@ public class ChequebookUI extends UI {
     }
 
     private class NewTransactionForm extends VerticalComponentGroup {
-        ComboBox peer = new ComboBox("User", new BeanItemContainer<>(Person.class, Bank.instance.getPersons())) {{
+        ComboBox peer = new ComboBox("User", personContainer) {{
             setNullSelectionAllowed(false);
             setTextInputAllowed(false);
             setItemCaptionPropertyId("name");
@@ -95,18 +107,9 @@ public class ChequebookUI extends UI {
             if (p != null && m.compareTo(BigDecimal.ZERO) > 0) {
                 Bank.instance.addTransaction(Instant.now(), me, p, m, comment.getValue());
                 setValue(null);
-                tabBarView.setSelectedTab(personTable);
-                personTable.refreshRowCache();
+                tabBarView.setSelectedTab(transactionTable);
             }
         });
-
-        private BigDecimal parse(String value) {
-            try {
-                return new BigDecimal(value);
-            } catch (Exception e) {
-                return BigDecimal.ZERO;
-            }
-        }
 
         {
             send.setWidth("100%");
@@ -121,21 +124,41 @@ public class ChequebookUI extends UI {
     }
 
     private class TransactionTable extends Table {
+        private BeanItemContainer<Transaction> ds = new BeanItemContainer<>(Transaction.class);
+
         {
             setSizeFull();
-            setContainerDataSource(new BeanItemContainer<>(Transaction.class, me.getTransactions()));
+            setContainerDataSource(ds);
             setVisibleColumns("created", "peerName", "amount", "comment");
             setColumnHeaders("Created", "Peer", "Amount", "Comment");
             setSortContainerPropertyId("created");
             setSortAscending(false);
             setConverter("created", new CellConverter<Instant>(Instant.class) {
-                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
+                DateTimeFormatter fmt;
 
                 @Override
                 protected String convert(Instant instant) {
+                    if (fmt == null) {
+                        fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneOffset.ofTotalSeconds(
+                                Page.getCurrent().getWebBrowser().getTimezoneOffset() / 1000));
+                    }
                     return fmt.format(instant);
                 }
             });
+        }
+
+        public void load() {
+            ds.removeAllItems();
+            ds.addAll(me.getTransactions());
+            sort();
+        }
+    }
+
+    private static BigDecimal parse(String value) {
+        try {
+            return new BigDecimal(value);
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
         }
     }
 
@@ -143,5 +166,4 @@ public class ChequebookUI extends UI {
     @VaadinServletConfiguration(productionMode = true, ui = ChequebookUI.class)
     public static class Servlet extends TouchKitServlet {
     }
-
 }

@@ -9,6 +9,8 @@ import java.util.List;
  * Created by rurik
  */
 public class Person implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final String key;
     private final String name;
     private final List<Transaction> transactions = new ArrayList<>();
