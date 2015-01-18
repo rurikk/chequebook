@@ -12,22 +12,28 @@ public class Bank implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public static final File dataFile = new File(System.getProperty("user.home"), "bank.bin");
-    public static final Bank instance = bootstrap();
+    public static Bank instance;
+
+    static {
+        load();
+    }
 
     private final Map<String, Person> persons = new HashMap<>();
     private String adminKey = "admin";
 
-    private static Bank bootstrap() {
+    public static synchronized void load() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
-            return (Bank) ois.readObject();
+            instance = (Bank) ois.readObject();
         } catch (Exception ignored) {
-            return new Bank();
+            if (instance == null) {
+                instance = new Bank();
+            }
         }
     }
 
-    private synchronized void save() {
+    private static synchronized void save() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
-            oos.writeObject(this);
+            oos.writeObject(instance);
         } catch (Exception ignored) {
         }
     }

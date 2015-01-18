@@ -37,6 +37,6 @@ public class Person implements Serializable {
         for (Transaction t : transactions) {
             sum = sum.add(t.getAmount());
         }
-        return sum;
+        return sum.negate();
     }
 }

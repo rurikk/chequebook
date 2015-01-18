@@ -13,13 +13,18 @@ import com.vaadin.server.FontAwesome;
 import com.vaadin.server.Page;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinServletRequest;
+import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.*;
 
 import javax.servlet.annotation.WebServlet;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+
+import static com.vaadin.server.FontAwesome.ARROW_CIRCLE_O_LEFT;
+import static com.vaadin.server.FontAwesome.ARROW_CIRCLE_RIGHT;
+import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.ofTotalSeconds;
 
 /**
  * Created by rurik
@@ -53,6 +58,7 @@ public class ChequebookUI extends UI {
                 }});
             } else {
                 me = Bank.instance.findPerson(ctx);
+                getPage().setTitle("CheckBook - " + me.getName());
                 tabBarView = new TabBarView() {{
                     addTab(personTable, "All", FontAwesome.LIST_OL);
                     addTab(form, "Add", FontAwesome.PLUS);
@@ -60,7 +66,7 @@ public class ChequebookUI extends UI {
                     addListener((SelectedTabChangeEvent event) -> {
                         Component component = event.getTabSheet().getSelelectedTab().getComponent();
                         if (component == personTable) {
-                            personTable.refreshRowCache();
+                            personTable.load();
                         }
                         if (component == transactionTable) {
                             transactionTable.load();
@@ -91,6 +97,12 @@ public class ChequebookUI extends UI {
                 form.setValue((Person) event.getItemId());
             });
         }
+
+        public void load() {
+            personContainer.removeAllItems();
+            personContainer.addAll(Bank.instance.getPersons());
+            sort();
+        }
     }
 
     private class NewTransactionForm extends VerticalComponentGroup {
@@ -104,7 +116,7 @@ public class ChequebookUI extends UI {
         Button send = new Button("Send", event -> {
             BigDecimal m = parse(amount.getValue());
             Person p = (Person) peer.getValue();
-            if (p != null && m.compareTo(BigDecimal.ZERO) > 0) {
+            if (p != null && m.compareTo(ZERO) > 0) {
                 Bank.instance.addTransaction(Instant.now(), me, p, m, comment.getValue());
                 setValue(null);
                 tabBarView.setSelectedTab(transactionTable);
@@ -133,18 +145,15 @@ public class ChequebookUI extends UI {
             setColumnHeaders("Created", "Peer", "Amount", "Comment");
             setSortContainerPropertyId("created");
             setSortAscending(false);
-            setConverter("created", new CellConverter<Instant>(Instant.class) {
-                DateTimeFormatter fmt;
-
-                @Override
-                protected String convert(Instant instant) {
-                    if (fmt == null) {
-                        fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneOffset.ofTotalSeconds(
-                                Page.getCurrent().getWebBrowser().getTimezoneOffset() / 1000));
-                    }
-                    return fmt.format(instant);
-                }
+            addGeneratedColumn("created", (source, itemId, columnId) -> DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                    .withZone(ofTotalSeconds(Page.getCurrent().getWebBrowser().getTimezoneOffset() / 1000))
+                    .format(((Transaction) itemId).getCreated()));
+            addGeneratedColumn("amount", (source, itemId, columnId) -> {
+                BigDecimal amount = ((Transaction) itemId).getAmount();
+                FontAwesome arrow = amount.compareTo(ZERO) < 0 ? ARROW_CIRCLE_O_LEFT : ARROW_CIRCLE_RIGHT;
+                return new Label(arrow.getHtml() + " " + amount.abs(), ContentMode.HTML);
             });
+
         }
 
         public void load() {
@@ -158,7 +167,7 @@ public class ChequebookUI extends UI {
         try {
             return new BigDecimal(value);
         } catch (Exception e) {
-            return BigDecimal.ZERO;
+            return ZERO;
         }
     }
 
