@@ -9,10 +9,7 @@ import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.annotations.Widgetset;
 import com.vaadin.data.util.BeanItemContainer;
-import com.vaadin.server.FontAwesome;
-import com.vaadin.server.Page;
-import com.vaadin.server.VaadinRequest;
-import com.vaadin.server.VaadinServletRequest;
+import com.vaadin.server.*;
 import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.*;
 
@@ -44,17 +41,33 @@ public class ChequebookUI extends UI {
         try {
             String ctx = ((VaadinServletRequest) request).getRequestURI().substring(1);
             if (Bank.instance.isAdmin(ctx)) {
-                setContent(new VerticalComponentGroup() {{
-                    TextField username = new TextField("New user name");
-                    addComponent(username);
-                    addComponent(new Button("Create user", clickEvent -> {
-                        if (!Strings.isNullOrEmpty(username.getValue())) {
-                            open(Bank.instance.addPerson(username.getValue()).getKey());
-                        }
-                    }));
-                    addComponent(new Button("Regenerate admin key", clickEvent -> {
-                        open(Bank.instance.generateAdminKey());
-                    }));
+                setContent(new VerticalLayout() {{
+                    setSizeFull();
+                    addComponent(new VerticalComponentGroup() {{
+                        TextField username = new TextField("New user name");
+                        addComponent(username);
+                        addComponent(new Button("Create user", clickEvent -> {
+                            if (!Strings.isNullOrEmpty(username.getValue())) {
+                                open(Bank.instance.addPerson(username.getValue()).getKey());
+                            }
+                        }));
+                        addComponent(new Button("Regenerate admin key", clickEvent -> {
+                            open(Bank.instance.generateAdminKey());
+                        }));
+                    }});
+                    addComponent(new Table() {{
+                        setSizeFull();
+                        setContainerDataSource(personContainer);
+                        addGeneratedColumn("user", (source, itemId, columnId) -> {
+                            Person person = (Person) itemId;
+                            return new Link(person.getName(), new ExternalResource(
+                                    Page.getCurrent().getLocation() + "/../" + person.getKey()));
+                        });
+                        setPageLength(personContainer.size());
+                        setVisibleColumns("user");
+                        setColumnHeaders("Users");
+                    }});
+                    setExpandRatio(getComponent(getComponentCount() - 1), 1);
                 }});
             } else {
                 me = Bank.instance.findPerson(ctx);
@@ -153,7 +166,6 @@ public class ChequebookUI extends UI {
                 FontAwesome arrow = amount.compareTo(ZERO) < 0 ? ARROW_CIRCLE_O_LEFT : ARROW_CIRCLE_RIGHT;
                 return new Label(arrow.getHtml() + " " + amount.abs(), ContentMode.HTML);
             });
-
         }
 
         public void load() {
