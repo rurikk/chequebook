@@ -15,13 +15,16 @@ import com.vaadin.ui.*;
 
 import javax.servlet.annotation.WebServlet;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 
 import static com.vaadin.server.FontAwesome.ARROW_CIRCLE_O_LEFT;
 import static com.vaadin.server.FontAwesome.ARROW_CIRCLE_RIGHT;
 import static java.math.BigDecimal.ZERO;
+import static java.text.DecimalFormatSymbols.getInstance;
 import static java.time.ZoneOffset.ofTotalSeconds;
+import static java.util.Locale.GERMAN;
 
 /**
  * Created by rurik
@@ -102,9 +105,13 @@ public class ChequebookUI extends UI {
         {
             setSizeFull();
             setContainerDataSource(personContainer);
-            setVisibleColumns("name", "balance");
-            setColumnHeaders("Name", "Balance");
+            setVisibleColumns("name", "balance", "change");
+            setColumnHeaders("Name", "Balance", "Last 12h");
             setSortContainerPropertyId("balance");
+            addGeneratedColumn("change", (source, itemId, columnId) -> {
+                BigDecimal ch = ((Person) itemId).getChange();
+                return ch.equals(ZERO) ? "" : new DecimalFormat("+0.##;−0.##", getInstance(GERMAN)).format(ch);
+            });
             addItemClickListener(event -> {
                 tabBarView.setSelectedTab(form);
                 form.setValue((Person) event.getItemId());
@@ -119,9 +126,8 @@ public class ChequebookUI extends UI {
     }
 
     private class NewTransactionForm extends VerticalComponentGroup {
-        ComboBox peer = new ComboBox("User", personContainer) {{
+        NativeSelect peer = new NativeSelect("User", personContainer) {{
             setNullSelectionAllowed(false);
-            setTextInputAllowed(false);
             setItemCaptionPropertyId("name");
         }};
         NumberField amount = new NumberField("Amount");

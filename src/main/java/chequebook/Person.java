@@ -2,6 +2,8 @@ package chequebook;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +38,17 @@ public class Person implements Serializable {
         BigDecimal sum = BigDecimal.ZERO;
         for (Transaction t : transactions) {
             sum = sum.add(t.getAmount());
+        }
+        return sum.negate();
+    }
+
+    public BigDecimal getChange() {
+        BigDecimal sum = BigDecimal.ZERO;
+        Instant dayBefore = Instant.now().minus(12, ChronoUnit.HOURS);
+        for (Transaction t : transactions) {
+            if (t.getCreated().isAfter(dayBefore)) {
+                sum = sum.add(t.getAmount());
+            }
         }
         return sum.negate();
     }
